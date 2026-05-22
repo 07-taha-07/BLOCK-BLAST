@@ -2,124 +2,895 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP ADRESİ SORGULAMA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Block Blast Ultimate | Master Edition [OB]</title>
     <style>
-        /* Arka Plan Fotoğrafı Ekleme */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        :root {
+            --bg-color: #4a3b32;
+            --board-bg: #362922;
+            --cell-empty: #261c17;
+            --cell-filled: linear-gradient(135deg, #e3c193 0%, #ba9566 100%);
+            --cell-border: #8c6a46;
+            --text-color: #ffffff;
+            --glow: transparent;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-image: url('https://i.ibb.co/NvKwQ9j/1779440098778.png'); /* Buraya ImgBB URL'nizi ekleyin */
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
+            padding: 15px;
+            overflow: hidden;
+            transition: background 0.4s ease;
+        }
+
+        .container {
+            background: rgba(20, 15, 12, 0.97);
+            border: 3px solid #1a120e;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+            border-radius: 24px;
+            padding: 20px;
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
+            position: relative;
+        }
+
+        /* ANA MENÜ */
+        #menuScreen {
+            display: flex;
             flex-direction: column;
-            margin: 0;
+            gap: 15px;
+            padding: 20px 0;
         }
 
-        h1 {
+        .logo-area h1 {
+            font-size: 46px;
+            font-weight: 900;
+            color: #ffcc00;
+            letter-spacing: 1px;
+            text-shadow: 3px 3px 0px #000;
+            line-height: 1;
+        }
+        .logo-area h1 span {
             color: #fff;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            display: block;
+            font-size: 52px;
         }
 
-        input[type="text"] {
+        #gameScreen {
+            display: none;
+        }
+
+        .stats-panel {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(0, 0, 0, 0.4);
             padding: 10px;
-            font-size: 16px;
-            width: 300px;
+            border-radius: 14px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .stat-box { font-size: 11px; color: #b5a499; font-weight: 700; text-transform: uppercase; }
+        .stat-val { font-size: 20px; color: #fff; font-weight: 900; }
+
+        /* KOMBO POPUP YAZISI */
+        #comboText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 38px;
+            font-weight: 950;
+            color: #00ffcc;
+            text-shadow: 0 0 15px #00ffcc, 3px 3px 0 #000;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #comboText.show {
+            animation: comboPopAnimate 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* 8x8 TAHTA */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            background: var(--board-bg);
+            padding: 8px;
+            border-radius: 14px;
+            border: 2px solid #1a120e;
+            margin-bottom: 20px;
+            aspect-ratio: 1;
+            position: relative;
+        }
+        
+        .cell {
+            background: var(--cell-empty);
+            border-radius: 5px;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6);
+            position: relative;
+            will-change: background, transform;
+        }
+        
+        .cell.filled {
+            background: var(--cell-filled);
+            border: 1px solid var(--cell-border);
+            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.3), inset 2px 2px 5px rgba(255,255,255,0.2), var(--glow);
+            animation: placePopEffect 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+        }
+
+        .cell.preview {
+            background: rgba(255, 255, 255, 0.35) !important;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.8);
+        }
+
+        .cell.exploding {
+            background: #ffffff !important;
+            box-shadow: 0 0 30px #ffcc00, inset 0 0 15px #ff9900 !important;
+            transform: scale(0);
+            transition: transform 0.25s cubic-bezier(0.6, -0.28, 0.735, 0.045), background 0.25s ease;
+            z-index: 10;
+        }
+
+        /* SEÇENEK ALANI */
+        .choices-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: rgba(0,0,0,0.35);
+            border-radius: 16px;
+            padding: 10px;
+            height: 130px;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .choice-wrapper {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .draggable-shape {
+            display: grid;
+            position: absolute;
+            cursor: grab;
+            touch-action: none;
+            z-index: 5;
+            transform: translate3d(0,0,0);
+            will-change: top, left, width, height;
+        }
+        
+        .draggable-shape.dragging {
+            cursor: grabbing;
+            z-index: 9999 !important;
+        }
+
+        .shape-cell {
+            border-radius: 4px;
+        }
+        .shape-cell.filled {
+            background: var(--cell-filled);
+            border: 1px solid var(--cell-border);
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.4), var(--glow);
+        }
+
+        /* ACTION BUTONLARI */
+        .btn-action {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 900;
+            border-radius: 14px;
+            cursor: pointer;
+            border: none;
+            text-transform: uppercase;
+            box-shadow: 0 5px 0px #996600;
+            background: linear-gradient(135deg, #ffcc00 0%, #ff9900 100%);
+            color: #000;
+            transition: transform 0.05s ease;
+        }
+        .btn-action:active {
+            transform: scale(0.98) translateY(3px);
+            box-shadow: 0 2px 0px #996600;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #5a626a 0%, #343a40 100%);
+            box-shadow: 0 5px 0px #212529;
+            color: #fff;
+        }
+        .btn-secondary:active {
+            box-shadow: 0 2px 0px #212529;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            box-shadow: 0 5px 0px #770000;
+            color: #fff;
+        }
+        .btn-danger:active {
+            box-shadow: 0 2px 0px #770000;
+        }
+
+        /* MODAL VE EKRAN KAPLAMALARI */
+        .modal-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 12, 10, 0.98);
+            border-radius: 24px;
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 25px;
+        }
+        .modal-overlay h2 { font-size: 24px; margin-bottom: 20px; color: #ffcc00; font-weight: 900; }
+        .modal-overlay input {
+            width: 100%; padding: 14px; background: #1a120e;
+            border: 2px solid #ba9566; border-radius: 10px;
+            color: #fff; font-size: 16px; text-align: center;
+            font-weight: 600; outline: none; margin-bottom: 20px;
+        }
+
+        /* YENİ GELİŞMİŞ OYUN BİTTİ PANELİ */
+        #gameOverModal h1 {
+            font-size: 42px;
+            font-weight: 950;
+            color: #ff3333;
+            text-shadow: 2px 2px 0px #000;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        .final-score-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 30px;
+        }
+        .final-score-box span {
+            color: #ffcc00;
+            font-size: 28px;
+            font-weight: 900;
+            display: block;
+        }
+
+        .leaderboard-container {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #ba9566;
+            border-radius: 16px;
+            padding: 10px;
+            max-height: 280px;
+            overflow-y: auto;
             margin-bottom: 20px;
         }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+        .leader-row { 
+            display: flex; justify-content: space-between; 
+            padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
+            font-size: 14px; font-weight: 600;
         }
+        .leader-row:last-child { border-bottom: none; }
+        .rank-name { display: flex; gap: 12px; }
+        .rank-num { color: #ffcc00; width: 20px; font-weight: 900; }
 
-        button:hover {
-            background-color: #45a049;
+        .footer { margin-top: 15px; font-size: 11px; color: #6e584c; font-weight: 700; }
+
+        @keyframes placePopEffect {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1.0); }
         }
-
-        .result {
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 20px;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 800px;
-            margin-top: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .result strong {
-            color: #333;
-        }
-
-        .error {
-            color: red;
-            font-size: 16px;
-            margin-top: 10px;
+        @keyframes comboPopAnimate {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(-15deg); opacity: 0; }
+            30% { transform: translate(-50%, -50%) scale(1.2) rotate(10deg); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-50%, -150%) scale(0.7); opacity: 0; }
         }
     </style>
 </head>
 <body>
 
-<h1>IP ADRESİ SORGULAMA</h1>
-<input type="text" id="ipInput" placeholder="IP ADRESİ GİRİN">
-<button onclick="getIPInfo()">SORGULA</button>
+<div class="container" id="mainContainer">
+    
+    <div id="menuScreen">
+        <div class="logo-area">
+            <h1>BLOCK<span>BLAST</span></h1>
+            <p style="color:#ba9566; font-size:12px; margin-top:5px; font-weight:800; letter-spacing: 2px;">OB ULTIMATE ENGINE</p>
+        </div>
+        
+        <button class="btn-action" id="menuStartBtn">OYNAMAYA BAŞLA</button>
+        <button class="btn-action btn-secondary" id="menuLeaderboardBtn">🏆 SIRALAMA (TOP 10)</button>
+    </div>
 
-<div id="ipInfo"></div>
-<div id="error" class="error"></div>
+    <div id="gameScreen">
+        <div class="stats-panel">
+            <div class="stat-box">OYUNCU<div class="stat-val" id="activePlayerName">-</div></div>
+            <div class="stat-box">X SİSTEMİ<div class="stat-val" id="comboVal" style="color: #00ffcc;">1X</div></div>
+            <div class="stat-box">SKOR<div class="stat-val" id="scoreVal" style="color: #ffcc00;">0</div></div>
+            <div class="stat-box">TEMA<div class="stat-val" id="themeVal" style="color: #fff; font-size: 11px; margin-top:4px;">Klasik</div></div>
+        </div>
+
+        <div class="board" id="gameBoard">
+            <div id="comboText">1X KOMBO</div>
+        </div>
+        <div class="choices-container" id="choicesContainer"></div>
+    </div>
+
+    <div class="modal-overlay" id="nameModal">
+        <h2>KULLANICI ADI GİR</h2>
+        <input type="text" id="playerNameInput" placeholder="Oyuncu Adı..." maxlength="12">
+        <button class="btn-action" id="modalSubmitBtn">OYUNA GİR</button>
+    </div>
+
+    <div class="modal-overlay" id="leaderboardModal">
+        <h2>🏆 TOP 10 LİDERLER</h2>
+        <div class="leaderboard-container" id="modalLeaderboardRows">
+            <div style="text-align:center;color:#b5a499;font-size:12px;padding:20px;">Veritabanından skorlar çekiliyor...</div>
+        </div>
+        <button class="btn-action btn-secondary" id="closeLeaderboardBtn">MENÜYE DÖN</button>
+    </div>
+
+    <div class="modal-overlay" id="gameOverModal">
+        <h1>KAYBETTİN!</h1>
+        <p style="color:#b5a499; font-size:14px; margin-bottom:15px; font-weight:600;">Koyacak yer kalmadı.</p>
+        <div class="final-score-box">
+            TOPLAM SKORUN
+            <span id="finalScoreVal">0</span>
+        </div>
+        <button class="btn-action btn-danger" id="backToMenuBtn">ANA EKRANA DÖN</button>
+    </div>
+
+    <div class="footer">OB_PERFORMANCE_SYSTEM © 2026</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-    function getIPInfo() {
-        var ip = document.getElementById("ipInput").value;
-        if (ip === "") {
-            alert("LÜTFEN BİR IP ADRESİ GİRİN.");
-            return;
+    // Firebase Config Yapılandırması
+    const firebaseConfig = {
+        apiKey: "AIzaSyAcL4zJku9uSWSAYABZ3ln835hx7diYnas",
+        authDomain: "block-blast-70884.firebaseapp.com",
+        projectId: "block-blast-70884",
+        storageBucket: "block-blast-70884.firebasestorage.app",
+        messagingSenderId: "1017130062263",
+        appId: "1:1017130062263:web:73e5f8a7cd47e9a3b69832",
+        databaseURL: "https://block-blast-70884-default-rtdb.firebaseio.com/"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const scoresRef = database.ref('block_blast_skorlari');
+
+    const BOARD_SIZE = 8;
+    let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+    let score = 0;
+    let username = "";
+    let gameActive = false;
+    let currentCombo = 1;
+
+    // Tamamı Test Edilmiş Optimize Blok Matrisleri
+    const blockTemplates = [
+        [[1]], 
+        [[1, 1]], 
+        [[1], [1]], 
+        [[1, 1, 1]], 
+        [[1], [1], [1]], 
+        [[1, 1], [1, 1]], 
+        [[1, 1, 1], [0, 1, 0]], 
+        [[1, 1, 1], [1, 0, 0]], 
+        [[1, 1], [1, 0], [1, 0]], 
+        [[1, 1, 1, 1]], 
+        [[1, 0], [1, 1], [0, 1]]
+    ];
+
+    let currentChoices = [null, null, null];
+
+    // Element Bağlantıları
+    const menuScreen = document.getElementById('menuScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const nameModal = document.getElementById('nameModal');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const gameOverModal = document.getElementById('gameOverModal');
+    const menuStartBtn = document.getElementById('menuStartBtn');
+    const menuLeaderboardBtn = document.getElementById('menuLeaderboardBtn');
+    const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+    const backToMenuBtn = document.getElementById('backToMenuBtn');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const modalSubmitBtn = document.getElementById('modalSubmitBtn');
+    const activePlayerName = document.getElementById('activePlayerName');
+    const scoreVal = document.getElementById('scoreVal');
+    const comboVal = document.getElementById('comboVal');
+    const themeVal = document.getElementById('themeVal');
+    const boardEl = document.getElementById('gameBoard');
+    const choicesContainer = document.getElementById('choicesContainer');
+    const modalLeaderboardRows = document.getElementById('modalLeaderboardRows');
+    const finalScoreVal = document.getElementById('finalScoreVal');
+
+    menuStartBtn.addEventListener('click', () => nameModal.style.display = 'flex');
+    menuLeaderboardBtn.addEventListener('click', () => {
+        leaderboardModal.style.display = 'flex';
+        fetchLeaderboard();
+    });
+    closeLeaderboardBtn.addEventListener('click', () => leaderboardModal.style.display = 'none');
+    
+    // Kaybettin ekranındaki Ana Ekran Dön Butonu tetikleyicisi
+    backToMenuBtn.addEventListener('click', () => {
+        gameOverModal.style.display = 'none';
+        gameScreen.style.display = 'none';
+        menuScreen.style.display = 'flex';
+    });
+
+    modalSubmitBtn.addEventListener('click', () => {
+        let inputName = playerNameInput.value.trim();
+        if(inputName === "") return alert("Geçerli bir ad yazın!");
+        username = inputName;
+        nameModal.style.display = 'none';
+        menuScreen.style.display = 'none';
+        gameScreen.style.display = 'block';
+        activePlayerName.innerText = username;
+        startGame();
+    });
+
+    function startGame() {
+        score = 0;
+        currentCombo = 1;
+        scoreVal.innerText = score;
+        comboVal.innerText = "1X";
+        grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+        gameActive = true;
+        updateTheme();
+        initBoard();
+        generateChoices();
+    }
+
+    function initBoard() {
+        boardEl.innerHTML = '<div id="comboText">1X KOMBO</div>';
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+
+    function generateChoices() {
+        choicesContainer.innerHTML = "";
+        for (let i = 0; i < 3; i++) {
+            let wrapper = document.createElement('div');
+            wrapper.classList.add('choice-wrapper');
+            choicesContainer.appendChild(wrapper);
+
+            let randIndex = Math.floor(Math.random() * blockTemplates.length);
+            currentChoices[i] = blockTemplates[randIndex];
+            createDraggableShape(currentChoices[i], i, wrapper);
+        }
+        
+        // Yeni bloklar geldiği an oyunun kilitlenip kilitlenmediğini kontrol et
+        if (!checkAnyMovePossible()) {
+            setTimeout(() => { gameOver(); }, 400);
+        }
+    }
+
+    // MATRIX COORD INTERSECTION tabanlı kusursuz sürükleme motoru
+    function createDraggableShape(shape, index, parent) {
+        if (!shape) return;
+
+        let shapeEl = document.createElement('div');
+        shapeEl.classList.add('draggable-shape');
+        shapeEl.dataset.index = index;
+
+        let rows = shape.length;
+        let cols = shape[0].length;
+        shapeEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        shapeEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+        const miniCellSize = 16;
+        const gapSize = 2;
+        shapeEl.style.width = `${(cols * miniCellSize) + ((cols - 1) * gapSize)}px`;
+        shapeEl.style.height = `${(rows * miniCellSize) + ((rows - 1) * gapSize)}px`;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                let cell = document.createElement('div');
+                cell.classList.add('shape-cell');
+                if (shape[r][c] === 1) cell.classList.add('filled');
+                shapeEl.appendChild(cell);
+            }
         }
 
-        var apiUrl = `http://ip-api.com/json/${ip}`;
+        parent.appendChild(shapeEl);
 
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('IP SORGULAMA BAŞARISIZ OLDU!');
+        let activeDrag = false;
+        let startX = 0;
+        let startY = 0;
+        let targetRow = -1;
+        let targetCol = -1;
+
+        function onStart(e) {
+            if (!gameActive) return;
+            activeDrag = true;
+            shapeEl.classList.add('dragging');
+            
+            let point = e.touches ? e.touches[0] : e;
+            let rect = shapeEl.getBoundingClientRect();
+            
+            let sampleGridCell = document.querySelector('.board .cell');
+            let targetCellSize = sampleGridCell.getBoundingClientRect().width;
+            let targetGap = 4;
+
+            shapeEl.style.width = `${(cols * targetCellSize) + ((cols - 1) * targetGap)}px`;
+            shapeEl.style.height = `${(rows * targetCellSize) + ((rows - 1) * targetGap)}px`;
+
+            shapeEl.querySelectorAll('.shape-cell').forEach(sc => {
+                sc.style.width = `${targetCellSize}px`;
+                sc.style.height = `${targetCellSize}px`;
+            });
+
+            startX = point.clientX - rect.left;
+            startY = point.clientY - rect.top;
+
+            shapeEl.style.position = 'fixed';
+            shapeEl.style.left = `${point.clientX - startX}px`;
+            shapeEl.style.top = `${point.clientY - startY}px`;
+            
+            if(e.cancelable) e.preventDefault();
+        }
+
+        function onMove(e) {
+            if (!activeDrag) return;
+            let point = e.touches ? e.touches[0] : e;
+            
+            let x = point.clientX - startX;
+            let y = point.clientY - startY;
+            
+            shapeEl.style.left = `${x}px`;
+            shapeEl.style.top = `${y}px`;
+
+            clearPreviews();
+            
+            let match = calculateMatrixFit(shapeEl, rows, cols);
+            if (match && canPlaceShape(grid, shape, match.row, match.col)) {
+                targetRow = match.row;
+                targetCol = match.col;
+                showPreview(shape, targetRow, targetCol);
+            } else {
+                targetRow = -1;
+                targetCol = -1;
+            }
+        }
+
+        function onEnd(e) {
+            if (!activeDrag) return;
+            activeDrag = false;
+            shapeEl.classList.remove('dragging');
+            clearPreviews();
+
+            let placed = false;
+            if (targetRow !== -1 && targetCol !== -1 && canPlaceShape(grid, shape, targetRow, targetCol)) {
+                placeShape(shape, targetRow, targetCol);
+                currentChoices[index] = null;
+                
+                removeEvents();
+                shapeEl.remove();
+                
+                checkMatches();
+                updateTheme();
+                placed = true;
+
+                if (currentChoices.every(c => c === null)) {
+                    generateChoices();
+                } else if (!checkAnyMovePossible()) {
+                    setTimeout(() => { gameOver(); }, 300);
                 }
-                return response.json();
-            })
-            .then(data => {
-                document.getElementById("error").innerHTML = "";
-                var resultHTML = `
-                    <div class="result">
-                        <div><strong>IP ADRRSİ :</strong> ${data.query}</div>
-                        <div><strong>ÜLKE :</strong> ${data.country}</div>
-                        <div><strong>ŞEHİR :</strong> ${data.city || 'BİLİNMİYOR'}</div>
-                        <div><strong>BÖLGE :</strong> ${data.regionName || 'BİLİNMİYOR'}</div>
-                        <div><strong>ENLEM :</strong> ${data.lat}</div>
-                        <div><strong>BOYLAM :</strong> ${data.lon}</div>
-                        <div><strong>ZAMAN DİLİMİ :</strong> ${data.timezone || 'BİLİNMİYOR'}</div>
-                        <div><strong>ISP (İNTERNET SERVİS SAĞLAYICISI) :</strong> ${data.isp || 'BİLİNMİYOR'}</div>
-                        <div><strong>POSTA KODU:</strong> ${data.zip || 'BİLİNMİYOR'}</div>
-                        <div><strong>BAĞLANTI TÜRÜ :</strong> ${data.org || 'BİLİNMİYOR'}</div>
-                        <div><strong>ŞİRKET/ORGANİZASYON :</strong> ${data.as || 'BİLİNMİYOR'}</div>
-                        <div><strong>IP TÜRÜ :</strong> ${data.type || 'BİLİNMİYOR'}</div>
-                        <div><strong>HOSTNAME :</strong> ${data.hostname || 'BİLİNMİYOR'}</div>1111
-                        <div><strong>DİSCORD :</strong> ${data.hostname || '@OB_OYUN_BOZANLAR'}</div>
+            }
+
+            if (!placed) {
+                shapeEl.style.position = 'absolute';
+                shapeEl.style.width = `${(cols * miniCellSize) + ((cols - 1) * gapSize)}px`;
+                shapeEl.style.height = `${(rows * miniCellSize) + ((rows - 1) * gapSize)}px`;
+                shapeEl.querySelectorAll('.shape-cell').forEach(sc => {
+                    sc.style.width = 'auto';
+                    sc.style.height = 'auto';
+                });
+                shapeEl.style.left = 'auto';
+                shapeEl.style.top = 'auto';
+                targetRow = -1;
+                targetCol = -1;
+            }
+        }
+
+        function calculateMatrixFit(draggedEl, sRows, sCols) {
+            let cells = document.querySelectorAll('.board .cell');
+            let shapeCells = draggedEl.querySelectorAll('.shape-cell');
+            
+            let bestRow = -1;
+            let bestCol = -1;
+            let maxOverlapArea = 0;
+
+            let firstFilledRow = -1;
+            let firstFilledCol = -1;
+            
+            for(let r=0; r<sRows; r++) {
+                for(let c=0; c<sCols; c++) {
+                    if(shape[r][c] === 1) {
+                        firstFilledRow = r;
+                        firstFilledCol = c;
+                        break;
+                    }
+                }
+                if(firstFilledRow !== -1) break;
+            }
+
+            if(firstFilledRow === -1) return null;
+
+            let targetIndex = firstFilledRow * sCols + firstFilledCol;
+            let referenceCellEl = shapeCells[targetIndex];
+            if(!referenceCellEl) return null;
+            
+            let refRect = referenceCellEl.getBoundingClientRect();
+
+            cells.forEach(cell => {
+                let cellRect = cell.getBoundingClientRect();
+                let xOverlap = Math.max(0, Math.min(refRect.left + cellRect.width, cellRect.right) - Math.max(refRect.left, cellRect.left));
+                let yOverlap = Math.max(0, Math.min(refRect.top + cellRect.height, cellRect.bottom) - Math.max(refRect.top, cellRect.top));
+                let overlap = xOverlap * yOverlap;
+
+                if (overlap > maxOverlapArea && overlap > (cellRect.width * cellRect.height * 0.35)) {
+                    maxOverlapArea = overlap;
+                    bestRow = parseInt(cell.dataset.row) - firstFilledRow;
+                    bestCol = parseInt(cell.dataset.col) - firstFilledCol;
+                }
+            });
+
+            if (bestRow >= 0 && bestRow + sRows <= BOARD_SIZE && bestCol >= 0 && bestCol + sCols <= BOARD_SIZE) {
+                return { row: bestRow, col: bestCol };
+            }
+            return null;
+        }
+
+        function removeEvents() {
+            shapeEl.removeEventListener('mousedown', onStart);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onEnd);
+            shapeEl.removeEventListener('touchstart', onStart);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onEnd);
+        }
+
+        shapeEl.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        shapeEl.addEventListener('touchstart', onStart, {passive: false});
+        window.addEventListener('touchmove', onMove, {passive: false});
+        window.addEventListener('touchend', onEnd);
+    }
+
+    function canPlaceShape(targetGrid, shape, startRow, startCol) {
+        let rows = shape.length; let cols = shape[0].length;
+        if (startRow < 0 || startCol < 0 || startRow + rows > BOARD_SIZE || startCol + cols > BOARD_SIZE) return false;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (shape[r][c] === 1 && targetGrid[startRow + r][startCol + c] === 1) return false;
+            }
+        }
+        return true;
+    }
+
+    function placeShape(shape, startRow, startCol) {
+        let rows = shape.length; let cols = shape[0].length;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (shape[r][c] === 1) {
+                    grid[startRow + r][startCol + c] = 1;
+                    score += 1 * currentCombo;
+                }
+            }
+        }
+        scoreVal.innerText = score;
+        updateBoardUI();
+    }
+
+    function showPreview(shape, startRow, startCol) {
+        let rows = shape.length; let cols = shape[0].length;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (shape[r][c] === 1) {
+                    let cell = boardEl.querySelector(`[data-row='${startRow + r}'][data-col='${startCol + c}']`);
+                    if (cell) cell.classList.add('preview');
+                }
+            }
+        }
+    }
+
+    function clearPreviews() {
+        document.querySelectorAll('.board .cell.preview').forEach(c => c.classList.remove('preview'));
+    }
+
+    function updateBoardUI() {
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let cell = boardEl.querySelector(`[data-row='${r}'][data-col='${c}']`);
+                if (cell) {
+                    if (grid[r][c] === 1) {
+                        cell.classList.add('filled');
+                    } else {
+                        cell.classList.remove('filled');
+                        cell.classList.remove('exploding');
+                    }
+                }
+            }
+        }
+    }
+
+    function checkMatches() {
+        let fullRows = []; let fullCols = [];
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            if (grid[r].every(val => val === 1)) fullRows.push(r);
+        }
+        for (let c = 0; c < BOARD_SIZE; c++) {
+            let colCells = [];
+            for (let r = 0; r < BOARD_SIZE; r++) colCells.push(grid[r][c]);
+            if (colCells.every(val => val === 1)) fullCols.push(c);
+        }
+
+        let cellsToExplode = [];
+        fullRows.forEach(r => { for (let c = 0; c < BOARD_SIZE; c++) { grid[r][c] = 0; cellsToExplode.push({r: r, c: c}); } });
+        fullCols.forEach(c => { for (let r = 0; r < BOARD_SIZE; r++) { grid[r][c] = 0; cellsToExplode.push({r: r, c: c}); } });
+
+        if (cellsToExplode.length > 0) {
+            currentCombo += 1;
+            comboVal.innerText = currentCombo + "X";
+            
+            const el = document.getElementById('comboText');
+            el.innerText = `${currentCombo}X KOMBO!`;
+            el.classList.remove('show');
+            void el.offsetWidth;
+            el.classList.add('show');
+
+            cellsToExplode.forEach(pos => {
+                let cell = boardEl.querySelector(`[data-row='${pos.r}'][data-col='${pos.c}']`);
+                if (cell) cell.classList.add('exploding');
+            });
+
+            let totalLines = fullRows.length + fullCols.length;
+            score += (totalLines * 25) * currentCombo;
+            scoreVal.innerText = score;
+
+            setTimeout(() => { updateBoardUI(); }, 250);
+        } else {
+            currentCombo = 1;
+            comboVal.innerText = "1X";
+        }
+    }
+
+    function checkAnyMovePossible() {
+        for (let i = 0; i < 3; i++) {
+            let shape = currentChoices[i];
+            if (!shape) continue; // Eğer yuva boşsa pas geç
+            
+            // Bu tekil blok tahtanın her hangi bir koordinatına sığıyor mu?
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (canPlaceShape(grid, shape, r, c)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function updateTheme() {
+        const root = document.documentElement;
+        if (score <= 100) {
+            themeVal.innerText = "Klasik Ahşap";
+            root.style.setProperty('--bg-color', '#4a3b32');
+            root.style.setProperty('--board-bg', '#362922');
+            root.style.setProperty('--cell-empty', '#261c17');
+            root.style.setProperty('--cell-filled', 'linear-gradient(135deg, #e3c193 0%, #ba9566 100%)');
+            root.style.setProperty('--cell-border', '#8c6a46');
+            root.style.setProperty('--glow', 'none');
+        } else if (score > 100 && score <= 300) {
+            themeVal.innerText = "Neon Gece";
+            root.style.setProperty('--bg-color', '#0f172a');
+            root.style.setProperty('--board-bg', '#020617');
+            root.style.setProperty('--cell-empty', '#1e293b');
+            root.style.setProperty('--cell-filled', 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)');
+            root.style.setProperty('--cell-border', '#60a5fa');
+            root.style.setProperty('--glow', '0 0 8px rgba(59, 130, 246, 0.6)');
+        } else if (score > 300 && score <= 600) {
+            themeVal.innerText = "Siber Punk";
+            root.style.setProperty('--bg-color', '#111111');
+            root.style.setProperty('--board-bg', '#050505');
+            root.style.setProperty('--cell-empty', '#222222');
+            root.style.setProperty('--cell-filled', 'linear-gradient(135deg, #00ff66 0%, #009933 100%)');
+            root.style.setProperty('--cell-border', '#00ff66');
+            root.style.setProperty('--glow', '0 0 10px rgba(0, 255, 102, 0.8)');
+        } else if (score > 600 && score <= 1000) {
+            themeVal.innerText = "Lava Dünyası";
+            root.style.setProperty('--bg-color', '#450a0a');
+            root.style.setProperty('--board-bg', '#1c0505');
+            root.style.setProperty('--cell-empty', '#2d0606');
+            root.style.setProperty('--cell-filled', 'linear-gradient(135deg, #ef4444 0%, #991b1b 100%)');
+            root.style.setProperty('--cell-border', '#f87171');
+            root.style.setProperty('--glow', '0 0 8px rgba(239, 68, 68, 0.6)');
+        } else {
+            themeVal.innerText = "Elmas Evren";
+            root.style.setProperty('--bg-color', '#2e1065');
+            root.style.setProperty('--board-bg', '#1e1b4b');
+            root.style.setProperty('--cell-empty', '#312e81');
+            root.style.setProperty('--cell-filled', 'linear-gradient(135deg, #c084fc 0%, #7e22ce 100%)');
+            root.style.setProperty('--cell-border', '#e9d5ff');
+            root.style.setProperty('--glow', '0 0 12px rgba(192, 132, 252, 0.7)');
+        }
+    }
+
+    // ARTIK DONMA YOK: DOĞRUDAN PANELİ AÇAN HATA ÖNLEYİCİ GAME OVER TETİKLEYİCİSİ
+    function gameOver() {
+        gameActive = false;
+        
+        // Final paneline skoru geçir ve paneli ekranda göster
+        finalScoreVal.innerText = score;
+        gameOverModal.style.display = 'flex';
+        
+        // Skoru arka planda Firebase'e gönder
+        scoresRef.child(username).transaction((currentScore) => {
+            if (currentScore === null || score > currentScore) return score;
+            return currentScore;
+        }, () => {
+            document.getElementById('comboText').classList.remove('show');
+        });
+    }
+
+    function fetchLeaderboard() {
+        modalLeaderboardRows.innerHTML = '<div style="text-align:center;color:#b5a499;font-size:12px;padding:20px;">Veritabanından skorlar çekiliyor...</div>';
+        
+        scoresRef.orderByValue().once('value', (snapshot) => {
+            let scoreList = [];
+            snapshot.forEach((childSnapshot) => {
+                scoreList.push({ name: childSnapshot.key, score: childSnapshot.val() });
+            });
+            
+            scoreList.reverse();
+
+            let rowsHTML = '';
+            scoreList.slice(0, 10).forEach((item, index) => {
+                rowsHTML += `
+                    <div class="leader-row">
+                        <div class="rank-name">
+                            <span class="rank-num">#${index + 1}</span>
+                            <span>${item.name}</span>
+                        </div>
+                        <div style="font-weight:bold; color: #ffcc00;">${item.score} Puan</div>
                     </div>
                 `;
-                document.getElementById("ipInfo").innerHTML = resultHTML;
-            })
-            .catch(error => {
-                document.getElementById("error").innerHTML = "IP SORGULAMA HATASI: " + error.message;
             });
+            modalLeaderboardRows.innerHTML = scoreList.length === 0 ? '<div style="text-align:center;color:#b5a499;font-size:12px;padding:20px;">Henüz kayıtlı skor bulunamadı!</div>' : rowsHTML;
+        });
     }
 </script>
-
 </body>
 </html>

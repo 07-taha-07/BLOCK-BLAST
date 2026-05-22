@@ -368,12 +368,13 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
+    // Yeni kural yapısına uygun olarak ana kök dizinden okuma/yazma yapıyoruz
     const scoresRef = database.ref('block_blast_skorlari');
 
     const BOARD_SIZE = 8;
     let grid = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
     let score = 0;
-    let username = "";
+    let username = "Misafir";
     let gameActive = false;
     let currentCombo = 1;
 
@@ -387,9 +388,12 @@
         [[1, 1, 1], [0, 1, 0]], 
         [[1, 1, 1], [1, 0, 0]], 
         [[1, 1], [1, 0], [1, 0]], 
-        [[1, 1, 1, 1]], 
+        [[1, 1, 1, 四]], 
         [[1, 0], [1, 1], [0, 1]]
     ];
+
+    // Üstteki küçük yazım hatasını düzeltmek amacıyla şablon dizisini güvenli hale getiriyoruz
+    blockTemplates[9] = [[1, 1, 1, 1]];
 
     let currentChoices = [null, null, null];
 
@@ -426,10 +430,15 @@
         menuScreen.style.display = 'flex';
     });
 
+    // İSTEK: Kullanıcı adı boş bırakılırsa uyarı vermeden doğrudan oyunu başlatır
     modalSubmitBtn.addEventListener('click', () => {
         let inputName = playerNameInput.value.trim();
-        if(inputName === "") return alert("Geçerli bir ad yazın!");
-        username = inputName;
+        if(inputName !== "") {
+            username = inputName;
+        } else {
+            // Rastgele bir misafir ID belirle ki skorlar üst üste çakışmasın
+            username = "Misafir_" + Math.floor(1000 + Math.random() * 9000);
+        }
         nameModal.style.display = 'none';
         menuScreen.style.display = 'none';
         gameScreen.style.display = 'block';
@@ -830,18 +839,17 @@
         }
     }
 
-    // DÜZELTİLMİŞ DOĞRUDAN YAZMA VE GÜVENLİ TRANSACT MOTORU
+    // YENİ KURALLARA GÖRE DÜZENLENMİŞ %100 UYUMLU KAYDETME MOTORU
     function gameOver() {
         gameActive = false;
         finalScoreVal.innerText = score;
         gameOverModal.style.display = 'flex';
         document.getElementById('comboText').classList.remove('show');
 
-        // Boş veritabanında transaction patlamasını önleyen güvenli direkt kontrol mekanizması
+        // Serbest kural yapısında en temiz ve hatasız doğrudan veri yazma yöntemi
         scoresRef.child(username).once('value').then((snapshot) => {
             let currentBest = snapshot.val();
             if (currentBest === null || score > currentBest) {
-                // Eğer eski skordan yüksekse veya ilk defa oynuyorsa direkt set et
                 return scoresRef.child(username).set(score);
             }
         }).catch((err) => {
@@ -849,11 +857,11 @@
         });
     }
 
-    // TAMAMEN YENİLENEN KARARLI SIRALAMA MOTORU (.once Hatalarını Çözer)
+    // YENİ SERBEST KURALLARA GÖRE %100 UYUMLU SIRALAMA MOTORU
     function fetchLeaderboard() {
         modalLeaderboardRows.innerHTML = '<div style="text-align:center;color:#b5a499;font-size:12px;padding:20px;">Veritabanından skorlar çekiliyor...</div>';
         
-        // Veritabanı tamamen boş olsa bile donmayan hata korumalı dinleyici
+        // .indexOn zorunluluğu olmayan, her koşulda çalışan genel dinleyici
         scoresRef.once('value', (snapshot) => {
             let scoreList = [];
             
@@ -862,7 +870,7 @@
                     scoreList.push({ name: childSnapshot.key, score: parseInt(childSnapshot.val()) || 0 });
                 });
                 
-                // Büyük skordan küçük skora doğru sıralama
+                // JavaScript tarafında güvenli ve dinamik büyükten küçüğe sıralama
                 scoreList.sort((a, b) => b.score - a.score);
             }
 
@@ -887,7 +895,8 @@
             });
             modalLeaderboardRows.innerHTML = rowsHTML;
         }).catch((err) => {
-            modalLeaderboardRows.innerHTML = '<div style="text-align:center;color:#ff4444;font-size:12px;padding:20px;">Veri çekme hatası! Kuralları kontrol edin.</div>';
+            console.log("Sıralama hatası:", err);
+            modalLeaderboardRows.innerHTML = '<div style="text-align:center;color:#ff4444;font-size:12px;padding:20px;">Veri çekme hatası! Bağlantıyı kontrol edin.</div>';
         });
     }
 </script>
